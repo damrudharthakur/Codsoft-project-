@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Tic-Tac-Toe AI</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center;
+    padding: 20px 16px;
+    color: #fff;
+  }
+  h1 { color: #00e5ff; font-size: 1.5rem; margin-bottom: 4px; }
+  .subtitle { color: #aaa; font-size: 0.75rem; margin-bottom: 16px; }
+
+  .scoreboard {
+    display: flex; gap: 12px; margin-bottom: 16px;
+  }
+  .score-card {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 10px 20px;
+    text-align: center; min-width: 80px;
+  }
+  .score-card .num { font-size: 1.6rem; font-weight: 700; color: #00e5ff; }
+  .score-card .lbl { font-size: 0.7rem; color: #aaa; }
+
+  .mode-row {
+    display: flex; gap: 8px; margin-bottom: 16px;
+  }
+  .mode-btn {
+    padding: 7px 16px; border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.2);
+    background: transparent; color: #aaa;
+    font-size: 0.8rem; cursor: pointer; transition: all 0.2s;
+  }
+  .mode-btn.active {
+    background: linear-gradient(90deg,#00e5ff33,#7b2ff733);
+    border-color: #00e5ff; color: #00e5ff;
+  }
+
+  .status {
+    font-size: 1rem; font-weight: 600;
+    margin-bottom: 16px; min-height: 24px;
+    color: #fff; text-align: center;
+  }
+
+  .board {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+    width: 100%; max-width: 300px;
+  }
+  .cell {
+    aspect-ratio: 1;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2.2rem; font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+  }
+  .cell:hover:not(.taken) { background: rgba(0,229,255,0.1); border-color: #00e5ff55; }
+  .cell.x { color: #00e5ff; }
+  .cell.o { color: #ff6b6b; }
+  .cell.win { background: rgba(0,229,255,0.15); border-color: #00e5ff; animation: pulse 0.5s ease; }
+  .cell.taken { cursor: default; }
+
+  @keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+    100% { transform: scale(1); }
+  }
+
+  .btn-reset {
+    padding: 12px 36px; border: none; border-radius: 12px;
+    background: linear-gradient(90deg,#00e5ff,#7b2ff7);
+    color: #fff; font-size: 1rem; font-weight: 600;
+    cursor: pointer; transition: opacity 0.2s;
+  }
+  .btn-reset:hover { opacity: 0.85; }
+</style>
+</head>
+<body>
+
+<h1>🎮 Tic-Tac-Toe AI</h1>
+<p class="subtitle">CodSoft AI Internship — Task 02 | Minimax Algorithm</p>
+
+<!-- Scoreboard -->
+<div class="scoreboard">
+  <div class="score-card"><div class="num" id="sYou">0</div><div class="lbl">You (X)</div></div>
+  <div class="score-card"><div class="num" id="sDraw">0</div><div class="lbl">Draw</div></div>
+  <div class="score-card"><div class="num" id="sAI">0</div><div class="lbl">AI (O)</div></div>
+</div>
+
+<!-- Mode -->
+<div class="mode-row">
+  <button class="mode-btn active" id="modeEasy" onclick="setMode('easy')">😊 Easy</button>
+  <button class="mode-btn" id="modeHard" onclick="setMode('hard')">🔥 Unbeatable</button>
+</div>
+
+<div class="status" id="status">Your turn! (X)</div>
+
+<div class="board" id="board">
+  <div class="cell" onclick="humanMove(0)"></div>
+  <div class="cell" onclick="humanMove(1)"></div>
+  <div class="cell" onclick="humanMove(2)"></div>
+  <div class="cell" onclick="humanMove(3)"></div>
+  <div class="cell" onclick="humanMove(4)"></div>
+  <div class="cell" onclick="humanMove(5)"></div>
+  <div class="cell" onclick="humanMove(6)"></div>
+  <div class="cell" onclick="humanMove(7)"></div>
+  <div class="cell" onclick="humanMove(8)"></div>
+</div>
+
+<button class="btn-reset" onclick="resetGame()">🔁 New Game</button>
+
+<script>
+let board = Array(9).fill(null);
+let gameOver = false;
+let mode = 'easy';
+let scores = { you: 0, ai: 0, draw: 0 };
+
+const wins = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+
+function setMode(m) {
+  mode = m;
+  document.getElementById('modeEasy').classList.toggle('active', m === 'easy');
+  document.getElementById('modeHard').classList.toggle('active', m === 'hard');
+  resetGame();
+}
+
+function checkWinner(b) {
+  for (const [a,c,d] of wins) {
+    if (b[a] && b[a] === b[c] && b[a] === b[d]) return { winner: b[a], line: [a,c,d] };
+  }
+  if (b.every(c => c)) return { winner: 'draw' };
+  return null;
+}
+
+function minimax(b, isMax) {
+  const res = checkWinner(b);
+  if (res) {
+    if (res.winner === 'O') return 10;
+    if (res.winner === 'X') return -10;
+    return 0;
+  }
+  if (isMax) {
+    let best = -Infinity;
+    b.forEach((v,i) => { if (!v) { b[i]='O'; best=Math.max(best,minimax(b,false)); b[i]=null; } });
+    return best;
+  } else {
+    let best = Infinity;
+    b.forEach((v,i) => { if (!v) { b[i]='X'; best=Math.min(best,minimax(b,true)); b[i]=null; } });
+    return best;
+  }
+}
+
+function aiMove() {
+  if (mode === 'easy') {
+    // Random move
+    const empty = board.map((v,i) => v ? null : i).filter(v => v !== null);
+    const pick = empty[Math.floor(Math.random() * empty.length)];
+    makeMove(pick, 'O');
+  } else {
+    // Minimax — unbeatable
+    let best = -Infinity, move = -1;
+    board.forEach((v,i) => {
+      if (!v) {
+        board[i] = 'O';
+        const score = minimax(board, false);
+        board[i] = null;
+        if (score > best) { best = score; move = i; }
+      }
+    });
+    makeMove(move, 'O');
+  }
+}
+
+function makeMove(i, player) {
+  board[i] = player;
+  const cell = document.getElementById('board').children[i];
+  cell.textContent = player;
+  cell.classList.add(player.toLowerCase(), 'taken');
+
+  const res = checkWinner(board);
+  if (res) {
+    gameOver = true;
+    if (res.winner === 'draw') {
+      document.getElementById('status').textContent = "It's a Draw! 🤝";
+      scores.draw++;
+    } else {
+      res.line.forEach(idx => document.getElementById('board').children[idx].classList.add('win'));
+      if (res.winner === 'X') {
+        document.getElementById('status').textContent = "You Win! 🎉";
+        scores.you++;
+      } else {
+        document.getElementById('status').textContent = "AI Wins! 🤖";
+        scores.ai++;
+      }
+    }
+    document.getElementById('sYou').textContent = scores.you;
+    document.getElementById('sAI').textContent = scores.ai;
+    document.getElementById('sDraw').textContent = scores.draw;
+  } else {
+    document.getElementById('status').textContent = player === 'X' ? "AI is thinking... 🤖" : "Your turn! (X)";
+  }
+}
+
+function humanMove(i) {
+  if (gameOver || board[i]) return;
+  makeMove(i, 'X');
+  if (!gameOver) setTimeout(aiMove, 400);
+}
+
+function resetGame() {
+  board = Array(9).fill(null);
+  gameOver = false;
+  document.getElementById('status').textContent = "Your turn! (X)";
+  const cells = document.getElementById('board').children;
+  for (const c of cells) {
+    c.textContent = '';
+    c.className = 'cell';
+  }
+}
+</script>
+</body>
+</html>
