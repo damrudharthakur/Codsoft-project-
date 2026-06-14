@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Recommendation System</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+    min-height: 100vh;
+    padding: 20px 16px;
+    color: #fff;
+  }
+  h1 { text-align: center; color: #00e5ff; font-size: 1.5rem; margin-bottom: 4px; }
+  .subtitle { text-align: center; color: #aaa; font-size: 0.75rem; margin-bottom: 20px; }
+
+  .card {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px;
+    padding: 20px;
+    max-width: 640px;
+    margin: 0 auto 16px;
+  }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
+  .tab {
+    padding: 8px 18px; border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.15);
+    background: transparent; color: #aaa;
+    font-size: 0.82rem; cursor: pointer; transition: all 0.2s;
+  }
+  .tab.active {
+    background: linear-gradient(90deg,#00e5ff33,#7b2ff733);
+    border-color: #00e5ff; color: #00e5ff;
+  }
+
+  /* Rating Grid */
+  .rating-section h3 { font-size: 0.9rem; color: #ccc; margin-bottom: 12px; }
+  .item-row {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 10px; flex-wrap: wrap;
+  }
+  .item-name { flex: 1; min-width: 120px; font-size: 0.88rem; color: #eee; }
+  .stars { display: flex; gap: 4px; }
+  .star {
+    font-size: 1.2rem; cursor: pointer;
+    color: #444; transition: color 0.15s;
+  }
+  .star.filled { color: #ffb400; }
+
+  .btn-get {
+    width: 100%; padding: 13px; border: none; border-radius: 12px;
+    background: linear-gradient(90deg,#00e5ff,#7b2ff7);
+    color: #fff; font-size: 1rem; font-weight: 600;
+    cursor: pointer; transition: opacity 0.2s; margin-top: 6px;
+  }
+  .btn-get:hover { opacity: 0.85; }
+
+  /* Results */
+  .results-title {
+    font-size: 0.85rem; color: #aaa; margin-bottom: 12px;
+  }
+  .rec-card {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .rec-rank {
+    font-size: 1.3rem; font-weight: 700; color: #00e5ff;
+    min-width: 30px; text-align: center;
+  }
+  .rec-info { flex: 1; }
+  .rec-name { font-size: 0.95rem; font-weight: 600; margin-bottom: 3px; }
+  .rec-meta { font-size: 0.75rem; color: #aaa; }
+  .rec-score {
+    font-size: 0.8rem; font-weight: 700;
+    background: rgba(0,229,255,0.15);
+    color: #00e5ff; border: 1px solid #00e5ff44;
+    padding: 4px 10px; border-radius: 20px;
+  }
+  .empty-res { text-align: center; color: #555; padding: 20px 0; font-size: 0.9rem; }
+
+  .genre-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .genre-tag {
+    padding: 5px 12px; border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.15);
+    background: transparent; color: #aaa;
+    font-size: 0.78rem; cursor: pointer; transition: all 0.2s;
+  }
+  .genre-tag.active {
+    background: rgba(123,47,247,0.3); border-color: #7b2ff7; color: #fff;
+  }
+</style>
+</head>
+<body>
+
+<h1>🎯 Recommendation System</h1>
+<p class="subtitle">CodSoft AI Internship — Task 04 | Content-Based & Collaborative Filtering</p>
+
+<div class="card">
+  <div class="tabs">
+    <button class="tab active" onclick="setTab('movies',this)">🎬 Movies</button>
+    <button class="tab" onclick="setTab('books',this)">📚 Books</button>
+    <button class="tab" onclick="setTab('music',this)">🎵 Music</button>
+  </div>
+
+  <!-- Genre Filter -->
+  <div class="rating-section">
+    <h3>Filter by Genre</h3>
+    <div class="genre-tags" id="genreTags"></div>
+    <h3>Rate what you've seen</h3>
+    <div id="ratingRows"></div>
+    <button class="btn-get" onclick="getRecommendations()">✨ Get Recommendations</button>
+  </div>
+</div>
+
+<div class="card" id="resultsCard" style="display:none">
+  <p class="results-title">🔥 Recommended for you</p>
+  <div id="results"></div>
+</div>
+
+<script>
+const data = {
+  movies: [
+    { id:1, name:"Inception", genre:"Sci-Fi", tags:["mind-bending","thriller","dreams"] },
+    { id:2, name:"The Dark Knight", genre:"Action", tags:["superhero","crime","epic"] },
+    { id:3, name:"Interstellar", genre:"Sci-Fi", tags:["space","emotional","time"] },
+    { id:4, name:"Parasite", genre:"Thriller", tags:["social","twist","dark"] },
+    { id:5, name:"The Shawshank Redemption", genre:"Drama", tags:["hope","prison","classic"] },
+    { id:6, name:"Avengers: Endgame", genre:"Action", tags:["superhero","epic","emotional"] },
+    { id:7, name:"The Matrix", genre:"Sci-Fi", tags:["mind-bending","action","virtual"] },
+    { id:8, name:"Whiplash", genre:"Drama", tags:["music","passion","intense"] },
+    { id:9, name:"Get Out", genre:"Thriller", tags:["horror","social","twist"] },
+    { id:10, name:"Dune", genre:"Sci-Fi", tags:["space","epic","adventure"] },
+    { id:11, name:"Joker", genre:"Drama", tags:["dark","crime","psychological"] },
+    { id:12, name:"1917", genre:"Action", tags:["war","intense","realistic"] },
+  ],
+  books: [
+    { id:1, name:"Atomic Habits", genre:"Self-Help", tags:["habits","productivity","growth"] },
+    { id:2, name:"Harry Potter", genre:"Fantasy", tags:["magic","adventure","classic"] },
+    { id:3, name:"The Alchemist", genre:"Fiction", tags:["journey","philosophy","inspiring"] },
+    { id:4, name:"Deep Work", genre:"Self-Help", tags:["focus","productivity","career"] },
+    { id:5, name:"1984", genre:"Dystopia", tags:["dark","political","classic"] },
+    { id:6, name:"Rich Dad Poor Dad", genre:"Finance", tags:["money","investing","mindset"] },
+    { id:7, name:"Ikigai", genre:"Self-Help", tags:["purpose","japanese","life"] },
+    { id:8, name:"Dune", genre:"Sci-Fi", tags:["space","epic","adventure"] },
+    { id:9, name:"The Psychology of Money", genre:"Finance", tags:["money","behavior","investing"] },
+    { id:10, name:"Sherlock Holmes", genre:"Mystery", tags:["detective","classic","logical"] },
+    { id:11, name:"Brave New World", genre:"Dystopia", tags:["dark","social","classic"] },
+    { id:12, name:"Think and Grow Rich", genre:"Finance", tags:["money","mindset","success"] },
+  ],
+  music: [
+    { id:1, name:"Blinding Lights", genre:"Pop", tags:["upbeat","synth","energetic"] },
+    { id:2, name:"Bohemian Rhapsody", genre:"Rock", tags:["classic","epic","iconic"] },
+    { id:3, name:"Shape of You", genre:"Pop", tags:["catchy","dance","feel-good"] },
+    { id:4, name:"Lose Yourself", genre:"Hip-Hop", tags:["motivational","intense","rap"] },
+    { id:5, name:"Hotel California", genre:"Rock", tags:["classic","guitar","iconic"] },
+    { id:6, name:"Levitating", genre:"Pop", tags:["upbeat","dance","fun"] },
+    { id:7, name:"God's Plan", genre:"Hip-Hop", tags:["chill","motivational","rap"] },
+    { id:8, name:"Stairway to Heaven", genre:"Rock", tags:["epic","guitar","classic"] },
+    { id:9, name:"Dynamite", genre:"Pop", tags:["upbeat","fun","feel-good"] },
+    { id:10, name:"HUMBLE.", genre:"Hip-Hop", tags:["intense","rap","bold"] },
+    { id:11, name:"Smells Like Teen Spirit", genre:"Rock", tags:["iconic","energy","classic"] },
+    { id:12, name:"As It Was", genre:"Pop", tags:["emotional","chill","catchy"] },
+  ]
+};
+
+let tab = 'movies';
+let ratings = {};
+let selectedGenre = 'All';
+
+function setTab(t, btn) {
+  tab = t; ratings = {}; selectedGenre = 'All';
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('resultsCard').style.display = 'none';
+  render();
+}
+
+function getGenres() {
+  const all = [...new Set(data[tab].map(i => i.genre))];
+  return ['All', ...all];
+}
+
+function render() {
+  // Genre tags
+  const genres = getGenres();
+  document.getElementById('genreTags').innerHTML = genres.map(g => `
+    <button class="genre-tag ${g===selectedGenre?'active':''}" onclick="selectGenre('${g}')">${g}</button>
+  `).join('');
+
+  // Rating rows
+  const items = selectedGenre === 'All' ? data[tab] : data[tab].filter(i => i.genre === selectedGenre);
+  document.getElementById('ratingRows').innerHTML = items.map(item => `
+    <div class="item-row">
+      <span class="item-name">${item.name} <span style="font-size:0.7rem;color:#777">${item.genre}</span></span>
+      <div class="stars" id="stars_${item.id}">
+        ${[1,2,3,4,5].map(s => `
+          <span class="star ${(ratings[item.id]||0)>=s?'filled':''}"
+            onclick="rate(${item.id},${s})">★</span>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function selectGenre(g) {
+  selectedGenre = g;
+  render();
+}
+
+function rate(id, stars) {
+  ratings[id] = stars;
+  render();
+}
+
+function cosineSimilarity(a, b) {
+  const allTags = [...new Set([...a, ...b])];
+  const va = allTags.map(t => a.includes(t) ? 1 : 0);
+  const vb = allTags.map(t => b.includes(t) ? 1 : 0);
+  const dot = va.reduce((s,v,i) => s + v*vb[i], 0);
+  const ma = Math.sqrt(va.reduce((s,v) => s+v*v, 0));
+  const mb = Math.sqrt(vb.reduce((s,v) => s+v*v, 0));
+  return ma && mb ? dot/(ma*mb) : 0;
+}
+
+function getRecommendations() {
+  const ratedIds = Object.keys(ratings).map(Number);
+  const liked = ratedIds.filter(id => ratings[id] >= 4);
+
+  // Build liked tag pool
+  const likedTags = [];
+  liked.forEach(id => {
+    const item = data[tab].find(i => i.id === id);
+    if (item) likedTags.push(...item.tags);
+  });
+
+  const unrated = data[tab].filter(i => !ratings[i.id]);
+
+  let scored;
+  if (likedTags.length > 0) {
+    // Content-based filtering
+    scored = unrated.map(item => ({
+      ...item,
+      score: cosineSimilarity(likedTags, item.tags)
+    })).sort((a,b) => b.score - a.score);
+  } else {
+    // No ratings — show popular (all unrated shuffled)
+    scored = unrated.map(i => ({ ...i, score: Math.random() })).sort((a,b) => b.score-a.score);
+  }
+
+  const top = scored.slice(0, 5);
+  const res = document.getElementById('results');
+
+  if (!top.length) {
+    res.innerHTML = '<div class="empty-res">Rate more items to get recommendations!</div>';
+  } else {
+    res.innerHTML = top.map((item, idx) => `
+      <div class="rec-card">
+        <div class="rec-rank">#${idx+1}</div>
+        <div class="rec-info">
+          <div class="rec-name">${item.name}</div>
+          <div class="rec-meta">${item.genre} • ${item.tags.join(', ')}</div>
+        </div>
+        <div class="rec-score">${likedTags.length ? (item.score*100).toFixed(0)+'%' : '🔥'}</div>
+      </div>
+    `).join('');
+  }
+
+  document.getElementById('resultsCard').style.display = 'block';
+  document.getElementById('resultsCard').scrollIntoView({ behavior: 'smooth' });
+}
+
+render();
+</script>
+</body>
+</html>
